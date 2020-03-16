@@ -1,12 +1,11 @@
 #' @title EM algorithm for multivariate skew normal distribution.
 #'
-#' @description The maximum likelihood estimate for the multivariate skew-normal distribution is obtained via an EM algorithm.
+#' @description EM algorithm in closed form.
 #'
 #' @param x A data matrix. Each row is an observation vector.
 #' @param eps Weight parameter with \eqn{0 \le eps < 1}. Default is 0.9.
-#' @param maxit Maximum number of iterations.
 #' @param iter.eps Convergence threshold. Default is 10^-6.
-#' @param stop.rule \code{"parameter"}: The difference of the parameter is used as a stopping rule. \code{"log-likelihood"} The ratio of the log-likelihood is used as a stopping rule.
+#' @param stop.rule \code{"parameter"}: The difference of the parameter is used as a stopping rule. \code{"log-likelihood"} The difference of the log-likelihood is used as a stopping rule.
 #'
 #' @return Location parameter (\code{mu}), covariance matrix (\code{omega}), skewness parameter (\code{delta}), and another expression of skewness parameter (\code{lambda}).
 #'
@@ -20,11 +19,12 @@
 #' @details The parameter \code{eps} is a tuning parameter which ensures that an initial covariance matrix is positive semi-definite.
 #'
 #' @examples
-#' library(DAAG)
-#' x <- ais[c("bmi")]
+#' library(sn)
+#' data(ais, package="sn")
+#' x <- ais[c("BMI")]
 #' snem(x, stop.rule ="log-likelihood")
 #' @export
-snem <- function(x, eps = 0.9, maxit = 6000, iter.eps = 10^-6, stop.rule = c("parameter","log-likelihood") ){
+snem <- function(x, eps = 0.9, iter.eps = 10^-6, stop.rule = c("parameter","log-likelihood") ){
 
   if(eps < 0 || eps > 1 ){
     stop(message="[Warning] 0 < eps < 1.")
@@ -67,8 +67,9 @@ snem <- function(x, eps = 0.9, maxit = 6000, iter.eps = 10^-6, stop.rule = c("pa
   if(stop=="parameter"){
 
     ll.val <- snll(x-t(matrix(mu0, p, n)), n, omega0.inv.half, delta0)
+    werr <- 2*iter.eps
 
-    for (i in 1:maxit){
+    while( werr > iter.eps ){
 
       mu1 <- x.colmean - ( omega0.half  %*% delta0 )/ tau0 * mean(yexabs( x-t(matrix(mu0, p, n)), omega0.inv.half, delta0, tau0 ))
 
@@ -89,10 +90,6 @@ snem <- function(x, eps = 0.9, maxit = 6000, iter.eps = 10^-6, stop.rule = c("pa
 
       ll.val <- append(ll.val, snll(x-t(matrix(mu1, p, n)), n, omega1.inv.half, delta1))
 
-      if (werr <= iter.eps){
-        break
-      }
-
       mu0 <- mu1
       omega0.inv.half <- omega1.inv.half
       omega0.half <- omega1.half
@@ -104,8 +101,8 @@ snem <- function(x, eps = 0.9, maxit = 6000, iter.eps = 10^-6, stop.rule = c("pa
     lambda1 <- delta1 / sqrt( 1- sum( delta1^2 ) )
     cat("\n")
     cat("stopping rule: ", stop,"\n")
-    cat("iteration: ", i, "\n")
-    cat("log-likelihood: ", ll.val[i+1], "\n")
+    cat("iteration: ", length(ll.val)-1,"\n")
+    cat("log-likelihood: ", ll.val[length(ll.val)], "\n")
 
     cat("mu \n")
     print(mu1)
@@ -122,8 +119,9 @@ snem <- function(x, eps = 0.9, maxit = 6000, iter.eps = 10^-6, stop.rule = c("pa
   }else if(stop=="log-likelihood"){
 
     ll.val <- snll(x-t(matrix(mu0, p, n)), n, omega0.inv.half, delta0)
+    werr <- 2*iter.eps
 
-    for(i in 1:maxit){
+    while( werr > iter.eps ){
 
       mu1 <- x.colmean - ( omega0.half  %*% delta0 )/ tau0 * mean(yexabs( x-t(matrix(mu0, p, n)), omega0.inv.half, delta0, tau0 ))
 
@@ -141,10 +139,6 @@ snem <- function(x, eps = 0.9, maxit = 6000, iter.eps = 10^-6, stop.rule = c("pa
 
       werr <- abs(ll.val[length(ll.val)]/ll.val[length(ll.val)-1]-1)
 
-      if (werr <= iter.eps){
-        break
-      }
-
       mu0 <- mu1
       omega0.inv.half <- omega1.inv.half
       omega0.half <- omega1.half
@@ -156,8 +150,8 @@ snem <- function(x, eps = 0.9, maxit = 6000, iter.eps = 10^-6, stop.rule = c("pa
     lambda1 <- delta1 / sqrt( 1- sum( delta1^2 ) )
     cat("\n")
     cat("stopping rule: ", stop,"\n")
-    cat("iteration: ", i,"\n")
-    cat("log-likelihood: ", ll.val[i+1], "\n")
+    cat("iteration: ", length(ll.val)-1,"\n")
+    cat("log-likelihood: ", ll.val[length(ll.val)], "\n")
 
     cat("mu \n")
     print(mu1)
